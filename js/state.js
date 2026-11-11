@@ -17,12 +17,23 @@ Game.createState = function (mapId = 'lodging') {
     camera: { x: 0 },    // 화면 왼쪽 끝이 맵의 어디인지 (맵이 화면보다 넓으면 따라 움직임)
     solids: [],          // 벽, 바닥, 천장 (맵을 불러올 때 생성)
     entities: [],        // 가구·장애물 (3단계~: NPC 도 여기에 추가)
-    flags: {},           // 5단계~: 퀘스트 진행 상태
-    inventory: [],       // 6단계~: 획득한 아이템
+    flags: {
+      pocketed: false,   // 조작법 쪽지를 주머니에 넣었는지 (H 로 다시 꺼낼 수 있음)
+      hasBag: false,     // 가방을 챙겼는지 (챙겨야 인벤토리가 생기고 밖으로 나갈 수 있음)
+      quest: 'none',     // none → active → hasLantern → done
+      searched: {},      // 이미 조사한 물건 id
+      taken: {},         // 이미 주운 물건 id (맵을 다시 불러와도 다시 생기지 않게)
+    },
+    inventory: [],       // 가방 속 아이템 id 목록 (예: 'lantern')
     ui: {
-      mode: 'explore',   // explore | dialogue
+      // note: 시작할 때 조작법 쪽지를 읽는 중 / help: H 로 쪽지를 다시 꺼낸 상태
+      // explore: 돌아다니기 / dialogue: NPC 와 대화 중
+      mode: 'note',
+      anim: { type: 'unroll', t: 0, dur: 0.45 }, // 쪽지 펼치기·주머니에 넣기 연출
       promptTarget: null,// 지금 E 로 상호작용할 수 있는 엔티티 id ("E 대화하기" 표시용)
-      dialogue: null,    // 대화 중일 때: { npcId, name, pages, page }
+      dialogue: null,    // 대화 중일 때: { npcId, name, role, pages, page, onEnd }
+      monologue: { queue: [], current: null, t: 0 }, // 화면 아래 혼잣말
+      bagShownAt: null,  // 인벤토리가 나타난 시각 (등장 연출용)
     },
   };
   Game.loadMap(state, mapId);
@@ -54,7 +65,22 @@ Game.loadMap = function (state, mapId, spawnX) {
     w: o.w,
     h: o.h,
     solid: o.solid,
+    search: o.search,                                       // 조사할 수 있는 물건
+    interact: o.search ? { label: '조사하기' } : undefined,
   }));
+
+  // 주울 수 있는 물건 (이미 주운 것은 다시 만들지 않는다)
+  for (const it of map.items || []) {
+    if (state.flags.taken[it.id]) continue;
+    state.entities.push({
+      id: it.id,
+      kind: 'item',
+      type: it.type,
+      x: it.x, y: map.floorY - it.h, w: it.w, h: it.h,
+      solid: false,
+      interact: { label: it.label },
+    });
+  }
 
   // 문: 통과 가능, 앞에서 E 를 누르면 다른 맵으로 이동
   if (map.door && map.door.to) {
@@ -66,6 +92,7 @@ Game.loadMap = function (state, mapId, spawnX) {
       solid: false,
       to: d.to,
       spawnX: d.spawnX,
+      requires: d.requires,
       interact: { label: d.label },
     });
   }

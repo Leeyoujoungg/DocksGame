@@ -191,27 +191,33 @@ Game.Sprites = (function () {
     });
   }
 
-  function personFrame(legs, arm) {
+  // withBag: 가방을 챙긴 뒤에만 크로스백과 어깨끈이 보인다
+  function personFrame(legs, arm, withBag) {
     const rows = BODY.concat(legs);
-    STRAP.forEach(([x, y]) => {
-      const chars = rows[y].split('');
-      chars[x] = '#';
-      rows[y] = chars.join('');
-    });
-    overlay(rows, BAG, 16);
+    if (withBag) {
+      STRAP.forEach(([x, y]) => {
+        const chars = rows[y].split('');
+        chars[x] = '#';
+        rows[y] = chars.join('');
+      });
+      overlay(rows, BAG, 16);
+    }
     overlay(rows, arm, 12);
     return fromPixels(rows);
   }
 
-  const stand = personFrame(LEGS_STAND, ARM_DOWN);
-  const stride = personFrame(LEGS_STRIDE, ARM_SWING);
-  // 걷기 순서: 보폭 → 모음 → 보폭 → 모음
-  const walkRight = [stride, stand, stride, stand];
+  function playerSet(withBag) {
+    const stand = personFrame(LEGS_STAND, ARM_DOWN, withBag);
+    const stride = personFrame(LEGS_STRIDE, ARM_SWING, withBag);
+    // 걷기 순서: 보폭 → 모음 → 보폭 → 모음
+    const walkRight = [stride, stand, stride, stand];
+    return {
+      right: { stand, walk: walkRight, air: stride },
+      left: { stand: flipped(stand), walk: walkRight.map(flipped), air: flipped(stride) },
+    };
+  }
 
-  const player = {
-    right: { stand, walk: walkRight, air: stride },
-    left: { stand: flipped(stand), walk: walkRight.map(flipped), air: flipped(stride) },
-  };
+  const player = { bag: playerSet(true), noBag: playerSet(false) };
 
   // ================= NPC: 어부 16 x 35 =================
   // 털모자 · 수염 · 긴 비옷 · 장화 — 플레이어와 실루엣이 달라 보이도록
@@ -604,6 +610,17 @@ Game.Sprites = (function () {
       p.rect(0, 3, w, 1);
       p.panel(-1, 5, w + 2, 2);                  // 감긴 밧줄
     },
+    // 바닥에 놓인 심부름꾼 가방 (숙소)
+    bag(p) {
+      const { w, h } = p;
+      p.rect(3, 0, w - 6, 1); p.rect(2, 1, 1, 2); p.rect(w - 3, 1, 1, 2); // 어깨끈 고리
+      p.panel(0, 3, w, h - 3);                  // 가방 몸통
+      p.panel(0, 3, w, 5);                      // 덮개
+      p.rect(1, 8, w - 2, 1);                   // 덮개 밑 그림자(면)
+      p.shade(1, 9, w - 2, 1, 0.5);
+      p.rect(w / 2 - 1, 6, 2, 3);               // 버클
+      p.rect(w - 3, 4, 2, h - 5);               // 오른쪽 면 그림자
+    },
     // 그림이 없는 새 오브젝트는 X 표시 상자로 보여준다
     fallback(p) {
       p.panel(0, 0, p.w, p.h);
@@ -621,5 +638,39 @@ Game.Sprites = (function () {
     return objectCache[key];
   }
 
-  return { object, player, npc, portrait, makeCanvas, fromPixels, dotAt };
+  // ================= 아이콘 (인벤토리·주머니 표시) =================
+  const icons = {
+    // 등대 랜턴 12 x 14
+    lantern: fromPixels([
+      '....####....',
+      '...#....#...',
+      '....####....',
+      '..########..',
+      '..#oooooo#..',
+      '..#o#oo,,#..',
+      '..#oo##,,#..',
+      '..#oo##,,#..',
+      '..#o#oo,,#..',
+      '..#oooo,,#..',
+      '..########..',
+      '...######...',
+      '..########..',
+      '............',
+    ]),
+    // 돌돌 말린 양피지 쪽지 14 x 10
+    scroll: fromPixels([
+      '.############.',
+      '#oo#oooooooo##',
+      '#o#oooooooooo#',
+      '.#o#####ooooo#',
+      '.#oooooooo,,o#',
+      '.#o#####oo,,o#',
+      '.#oooooooooo#.',
+      '##oooooooooo#.',
+      '#oo#oooooo,,#.',
+      '.############.',
+    ]),
+  };
+
+  return { object, player, npc, portrait, icons, makeCanvas, fromPixels, dotAt };
 })();

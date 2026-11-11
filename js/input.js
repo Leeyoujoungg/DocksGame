@@ -5,7 +5,7 @@ Game.Input = (function () {
   const held = new Set();
   const pressedOnce = new Set(); // 이번 프레임에 새로 눌린 키
 
-  const GAME_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'Space'];
+  const GAME_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'KeyH', 'Escape', 'Space'];
 
   window.addEventListener('keydown', (e) => {
     if (!GAME_KEYS.includes(e.code)) return;

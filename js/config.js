@@ -1,9 +1,15 @@
 // 게임 전체에서 공유하는 설정값. 숫자를 바꿀 때는 여기만 고치면 된다.
 window.Game = window.Game || {};
 
+// 화면 가로 길이: 브라우저 창 비율에 맞춰 넓힌다 (높이 192 기준, 320~430 사이)
+// → 와이드 모니터에서도 양옆이 잘리거나 비지 않고 창을 꽉 채운다
+const VIEW_HEIGHT = 192;
+const VIEW_WIDTH = Math.max(320, Math.min(430,
+  Math.round((VIEW_HEIGHT * window.innerWidth) / Math.max(1, window.innerHeight))));
+
 Game.CONFIG = {
-  WIDTH: 320,         // 논리 해상도
-  HEIGHT: 192,
+  WIDTH: VIEW_WIDTH,  // 논리 해상도 (가로는 창 비율에 따라 달라짐)
+  HEIGHT: VIEW_HEIGHT,
   SCALE: 3,           // 화면에서는 3배로 키워 보여준다 (글자는 이 해상도로 선명하게)
 
   INTERACT_RANGE: 22, // NPC·문과 이 거리(px) 안에 있어야 E 로 상호작용
