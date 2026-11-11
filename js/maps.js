@@ -41,24 +41,31 @@ Game.MAPS = {
   dock: {
     name: '부둣가',
     style: 'dock',
+    width: 640,                      // 화면 두 장 너비 → 카메라가 플레이어를 따라 오른쪽으로 이동
     floorY: 150,
     ceilingY: 0,                     // 바깥이라 천장 없음
-    bounds: { left: 4, right: 316 }, // 화면 양 끝
+    bounds: { left: 4, right: 636 }, // 맵 양 끝
     horizonY: 98,                    // 바다 수평선
     windows: [],
+    boat: { x: 196, w: 58 },         // 부두 옆에 묶인 어부의 배 (배경)
+    lighthouse: { x: 592, headlandX: 468 }, // 오른쪽 끝 곶 위의 등대 (배경)
     // 왼쪽 숙소 건물의 문 → 숙소
     door: { x: 34, w: 22, h: 40, to: 'lodging', spawnX: 287, label: '숙소로 들어가기' },
 
     objects: [
       { id: 'dockCrate1', type: 'crate',  x: 96,  w: 15, h: 15, solid: true  }, // 상자 (장애물)
-      { id: 'dockPost1',  type: 'post',   x: 150, w: 6,  h: 14, solid: false }, // 계류 기둥
-      { id: 'dockNet',    type: 'net',    x: 116, w: 28, h: 11, solid: false }, // 그물 더미
-      { id: 'dockBarrel', type: 'barrel', x: 290, w: 14, h: 18, solid: true  }, // 통 (장애물)
+      { id: 'dockNet',    type: 'net',    x: 168, w: 28, h: 11, solid: false }, // 그물 더미 (어부 옆)
+      { id: 'dockPost1',  type: 'post',   x: 236, w: 6,  h: 14, solid: false }, // 계류 기둥 (배를 묶음)
+      { id: 'dockBarrel', type: 'barrel', x: 300, w: 14, h: 18, solid: true  }, // 통 (장애물)
+      { id: 'dockCrate2', type: 'crate',  x: 380, w: 15, h: 15, solid: true  }, // 상자 두 개 (장애물)
+      { id: 'dockCrate3', type: 'crate',  x: 395, w: 15, h: 15, solid: true  },
+      { id: 'dockPost2',  type: 'post',   x: 450, w: 6,  h: 14, solid: false },
+      { id: 'dockBarrel2',type: 'barrel', x: 600, w: 14, h: 18, solid: false }, // 등대 아래 통 (배경)
     ],
 
     npcs: [
-      { id: 'fisher', x: 190, facing: 'left' }, // 어부: 대화만 하는 NPC
-      { id: 'keeper', x: 258, facing: 'left' }, // 등대지기: 퀘스트를 줄 NPC (퀘스트는 다음 단계)
+      { id: 'fisher', x: 140, facing: 'right' }, // 어부: 배 앞, 대화만 하는 NPC
+      { id: 'keeper', x: 540, facing: 'left' },  // 등대지기: 등대 아래, 퀘스트를 줄 NPC
     ],
 
     spawn: { x: 45 },

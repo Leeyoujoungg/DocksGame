@@ -14,6 +14,7 @@ Game.createState = function (mapId = 'lodging') {
       moving: false,
       animTime: 0,       // 걷기 애니메이션 시간
     },
+    camera: { x: 0 },    // 화면 왼쪽 끝이 맵의 어디인지 (맵이 화면보다 넓으면 따라 움직임)
     solids: [],          // 벽, 바닥, 천장 (맵을 불러올 때 생성)
     entities: [],        // 가구·장애물 (3단계~: NPC 도 여기에 추가)
     flags: {},           // 5단계~: 퀘스트 진행 상태
@@ -22,7 +23,6 @@ Game.createState = function (mapId = 'lodging') {
       mode: 'explore',   // explore | dialogue
       promptTarget: null,// 지금 E 로 상호작용할 수 있는 엔티티 id ("E 대화하기" 표시용)
       dialogue: null,    // 대화 중일 때: { npcId, name, pages, page }
-      debug: false,      // 1 키: 충돌 영역 보기
     },
   };
   Game.loadMap(state, mapId);
@@ -32,16 +32,17 @@ Game.createState = function (mapId = 'lodging') {
 // 맵을 불러와 벽·오브젝트를 만들고 플레이어를 시작 위치에 둔다.
 // 2단계에서 문을 지나 맵을 바꿀 때도 이 함수를 쓴다.
 Game.loadMap = function (state, mapId, spawnX) {
-  const { WIDTH, HEIGHT } = Game.CONFIG;
+  const { HEIGHT } = Game.CONFIG;
   const map = Game.MAPS[mapId];
+  const W = Game.mapWidth(map);
   state.mapId = mapId;
 
-  // 방의 벽, 바닥, 천장은 통과할 수 없다 → 화면 밖으로도 나갈 수 없다
+  // 방의 벽, 바닥, 천장은 통과할 수 없다 → 맵 밖으로도 나갈 수 없다
   state.solids = [
-    { x: 0, y: 0, w: map.bounds.left, h: HEIGHT },                               // 왼쪽 벽
-    { x: map.bounds.right, y: 0, w: WIDTH - map.bounds.right, h: HEIGHT },       // 오른쪽 벽
-    { x: 0, y: map.floorY, w: WIDTH, h: HEIGHT - map.floorY },                   // 바닥
-    { x: 0, y: 0, w: WIDTH, h: map.ceilingY },                                   // 천장
+    { x: 0, y: 0, w: map.bounds.left, h: HEIGHT },                           // 왼쪽 벽
+    { x: map.bounds.right, y: 0, w: W - map.bounds.right, h: HEIGHT },       // 오른쪽 벽
+    { x: 0, y: map.floorY, w: W, h: HEIGHT - map.floorY },                   // 바닥
+    { x: 0, y: 0, w: W, h: map.ceilingY },                                   // 천장
   ];
 
   state.entities = map.objects.map((o) => ({
@@ -89,8 +90,24 @@ Game.loadMap = function (state, mapId, spawnX) {
   p.vx = 0;
   p.vy = 0;
   p.onGround = true;
+
+  Game.updateCamera(state, true);
 };
 
 Game.currentMap = function (state) {
   return Game.MAPS[state.mapId];
+};
+
+// 맵 가로 길이 (width 를 적지 않은 맵은 화면 한 장 크기)
+Game.mapWidth = function (map) {
+  return map.width || Game.CONFIG.WIDTH;
+};
+
+// 카메라: 플레이어가 화면 가운데 오도록 따라가되, 맵 끝에서는 멈춘다
+Game.updateCamera = function (state) {
+  const { WIDTH } = Game.CONFIG;
+  const W = Game.mapWidth(Game.currentMap(state));
+  const p = state.player;
+  const target = p.x + p.w / 2 - WIDTH / 2;
+  state.camera.x = Math.max(0, Math.min(W - WIDTH, target));
 };

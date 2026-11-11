@@ -13,13 +13,13 @@ Game.Render = (function () {
   const CONTACT_SHADOW = [1, 1, 0.7, 0.45, 0.25, 0.1];
 
   // 밀도 배열(shade)을 화면에 찍는다. 1 이상이면 면, 그 밑이면 점
-  function paintShade(ctx, shade) {
+  function paintShade(ctx, shade, W = WIDTH) {
     ctx.fillStyle = COLORS.light;
-    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    ctx.fillRect(0, 0, W, HEIGHT);
     ctx.fillStyle = COLORS.dark;
     for (let y = 0; y < HEIGHT; y++) {
-      for (let x = 0; x < WIDTH; x++) {
-        const d = shade[y * WIDTH + x];
+      for (let x = 0; x < W; x++) {
+        const d = shade[y * W + x];
         if (d >= 1 || (d > 0 && dotAt(x, y, d))) ctx.fillRect(x, y, 1, 1);
       }
     }
@@ -28,13 +28,13 @@ Game.Render = (function () {
   // 그림자 가장자리를 부드럽게: 면(1)에서 n 픽셀 동안 점으로 옅어짐
   const falloff = (dist, solid, soft) => (dist < solid ? 1 : Math.max(0, 1 - (dist - solid) / soft) * 0.8);
 
-  function addContactShadows(shade, map, L, R) {
+  function addContactShadows(shade, map, L, R, W = WIDTH) {
     for (const o of map.objects) {
       CONTACT_SHADOW.forEach((density, i) => {
         const y = map.floorY + i;
         for (let x = o.x - 2; x < o.x + o.w + 3; x++) {
           if (x < L || x >= R) continue;
-          const k = y * WIDTH + x;
+          const k = y * W + x;
           shade[k] = Math.max(shade[k], density);
         }
       });
@@ -150,12 +150,13 @@ Game.Render = (function () {
   // ================= 부둣가 (바깥) =================
   function buildDock(map, ctx) {
     const { floorY, horizonY } = map;
+    const W = Game.mapWidth(map);      // 부둣가는 화면보다 넓다
     const DECK = 7;                    // 부두 윗판 두께
     const beamY = floorY + DECK;       // 부두 앞면(들보) 시작
 
-    const shade = new Float32Array(WIDTH * HEIGHT);
+    const shade = new Float32Array(W * HEIGHT);
     for (let y = 0; y < HEIGHT; y++) {
-      for (let x = 0; x < WIDTH; x++) {
+      for (let x = 0; x < W; x++) {
         let d = 0;
         if (y < horizonY) {
           d = 0.22 * (1 - y / horizonY);                          // 하늘: 위가 조금 어둡고 수평선은 안개로 밝음
@@ -169,7 +170,7 @@ Game.Render = (function () {
           d = falloff(y - (beamY + 8), 4, 10);                    // 부두 밑 그림자: 면 → 점
           d = Math.max(d, 0.45);                                  // 그 아래 물
         }
-        shade[y * WIDTH + x] = d;
+        shade[y * W + x] = d;
       }
     }
 
@@ -177,24 +178,26 @@ Game.Render = (function () {
     const B = { x: 0, w: 78, top: 74 };
     for (let y = B.top; y < floorY; y++) {
       for (let x = B.x + B.w; x < B.x + B.w + 12; x++) {
-        const k = y * WIDTH + x;
+        const k = y * W + x;
         shade[k] = Math.max(shade[k], falloff(x - (B.x + B.w), 2, 10));
       }
     }
-    addContactShadows(shade, map, 0, WIDTH);
-    paintShade(ctx, shade);
+    addContactShadows(shade, map, 0, W, W);
+    paintShade(ctx, shade, W);
 
     const line = (x, y, w, h) => ctx.fillRect(x, y, w, h);
     ctx.fillStyle = COLORS.dark;
 
-    // 먼 곶과 등대 (오른쪽 뒤)
-    for (let x = 214; x < WIDTH; x++) {
-      const top = horizonY - 10 + Math.round(Math.pow((x - 214) / 106 - 0.55, 2) * 18);
+    // 오른쪽 끝 곶과 등대
+    const LH = map.lighthouse;
+    const hx = LH.headlandX;
+    for (let x = hx; x < W; x++) {
+      const top = horizonY - 12 + Math.round(Math.pow((x - hx) / (W - hx) - 0.62, 2) * 26);
       line(x, top, 1, horizonY - top);                  // 곶 실루엣: 면
     }
-    const T = { x: 262, top: 40, base: 90 };
+    const T = { x: LH.x, top: 34, base: 90 };
     for (let y = T.top; y < T.base; y++) {              // 위가 좁은 등대 몸통
-      const half = 5 + Math.round(((y - T.top) / (T.base - T.top)) * 3);
+      const half = 6 + Math.round(((y - T.top) / (T.base - T.top)) * 4);
       ctx.fillStyle = COLORS.light;
       line(T.x - half, y, half * 2, 1);
       ctx.fillStyle = COLORS.dark;
@@ -215,9 +218,9 @@ Game.Render = (function () {
     line(T.x - 2, T.top - 14, 4, 2);
 
     // 수평선과 물결
-    line(0, horizonY, 214, 1);
+    line(0, horizonY, hx, 1);
     for (let y = horizonY + 6; y < floorY; y += 7) {
-      for (let x = (y * 7) % 23; x < WIDTH; x += 23) {
+      for (let x = (y * 7) % 23; x < W; x += 23) {
         ctx.fillStyle = COLORS.light;
         line(x, y, 6, 1);                                // 물결 하이라이트
         ctx.fillStyle = COLORS.dark;
@@ -225,8 +228,32 @@ Game.Render = (function () {
       }
     }
     // 하늘의 안개 띠
-    for (const [y, x0, x1] of [[24, 30, 120], [34, 150, 230], [56, 90, 200]]) {
+    for (const [y, x0, x1] of [[24, 30, 120], [34, 150, 230], [56, 90, 200], [28, 300, 420], [48, 380, 470], [20, 470, 560]]) {
       for (let x = x0; x < x1; x += 3) line(x, y, 1, 1);
+    }
+
+    // 부두 옆에 묶인 작은 배 (물 위, 부두 뒤)
+    if (map.boat) {
+      const { x: bx, w: bw } = map.boat;
+      const top = floorY - 13;
+      for (let i = 0; i < 9; i++) {                       // 아래로 좁아지는 선체
+        const inset = Math.round(i * i * 0.12);
+        ctx.fillStyle = COLORS.light;
+        line(bx + inset, top + i, bw - inset * 2, 1);
+        ctx.fillStyle = COLORS.dark;
+        line(bx + inset, top + i, 1, 1);
+        line(bx + bw - 1 - inset, top + i, 1, 1);
+        if (i >= 5) line(bx + inset, top + i, bw - inset * 2, 1);  // 물에 잠긴 아랫부분: 면
+      }
+      line(bx, top, bw, 1);                               // 뱃전
+      line(bx + 2, top + 3, bw - 4, 1);                   // 띠
+      for (let x = bx + 2; x < bx + bw - 2; x++) if (dotAt(x, top + 4, 0.5)) line(x, top + 4, 1, 1);
+      line(bx + bw / 2, top - 30, 1, 30);                 // 돛대
+      line(bx + bw / 2 - 10, top - 22, 20, 1);            // 활대
+      for (let i = 0; i < 12; i++) line(bx + bw / 2 + 1 + i, top - 1 - i * 2, 1, 1); // 줄
+      ctx.fillStyle = COLORS.light;                       // 배 그림자 옆 물 반짝임
+      line(bx - 4, top + 10, 3, 1); line(bx + bw + 2, top + 9, 4, 1);
+      ctx.fillStyle = COLORS.dark;
     }
 
     // 숙소 건물 외벽 (왼쪽)
@@ -264,12 +291,12 @@ Game.Render = (function () {
     line(d.x + d.w - 7, dy + d.h / 2, 2, 2);             // 손잡이
 
     // 부두 윗판, 들보, 기둥
-    line(0, floorY, WIDTH, 1);
-    for (let x = 6; x < WIDTH; x += 14) line(x, floorY + 1, 1, DECK - 1);  // 판자 이음새
-    line(0, beamY - 1, WIDTH, 1);
+    line(0, floorY, W, 1);
+    for (let x = 6; x < W; x += 14) line(x, floorY + 1, 1, DECK - 1);      // 판자 이음새
+    line(0, beamY - 1, W, 1);
     ctx.fillStyle = COLORS.light;
-    for (let x = 10; x < WIDTH; x += 30) line(x, beamY + 3, 2, 2);        // 들보 볼트
-    for (let x = 20; x < WIDTH; x += 64) {                                 // 물속 기둥
+    for (let x = 10; x < W; x += 30) line(x, beamY + 3, 2, 2);            // 들보 볼트
+    for (let x = 20; x < W; x += 64) {                                     // 물속 기둥
       ctx.fillStyle = COLORS.light;
       line(x, beamY + 8, 8, HEIGHT - beamY - 8);
       ctx.fillStyle = COLORS.dark;
@@ -286,7 +313,7 @@ Game.Render = (function () {
     if (!bgCache[mapId]) {
       const map = Game.MAPS[mapId];
       const c = document.createElement('canvas');
-      c.width = WIDTH;
+      c.width = Game.mapWidth(map);
       c.height = HEIGHT;
       const ctx = c.getContext('2d');
       if (map.style === 'dock') buildDock(map, ctx);
@@ -337,25 +364,11 @@ Game.Render = (function () {
     ctx.drawImage(playerImage(p), Math.round(p.x), Math.round(p.y));
   }
 
-  function drawDebug(ctx, state) {
-    ctx.fillStyle = COLORS.dark;
-    const dashed = (r) => {
-      const x = Math.round(r.x), y = Math.round(r.y), w = Math.round(r.w), h = Math.round(r.h);
-      for (let i = 0; i < w; i += 2) { ctx.fillRect(x + i, y, 1, 1); ctx.fillRect(x + i, y + h - 1, 1, 1); }
-      for (let i = 0; i < h; i += 2) { ctx.fillRect(x, y + i, 1, 1); ctx.fillRect(x + w - 1, y + i, 1, 1); }
-    };
-    Game.Collision.solidRects(state).forEach(dashed);
-    dashed(Game.Collision.worldHitbox(state.player));
-    // 상호작용 범위
-    for (const ent of state.entities) {
-      if (!ent.interact) continue;
-      const cx = ent.x + ent.w / 2;
-      const r = Game.CONFIG.INTERACT_RANGE;
-      for (let x = cx - r; x <= cx + r; x += 4) ctx.fillRect(Math.round(x), ent.y + ent.h + 2, 2, 1);
-    }
-  }
-
   function draw(ctx, state) {
+    // 카메라만큼 세계 전체를 왼쪽으로 밀어서 그린다
+    ctx.save();
+    ctx.translate(-Math.round(state.camera.x), 0);
+
     ctx.drawImage(background(state.mapId), 0, 0);
 
     // 뒤쪽 배경 가구 → NPC → 앞을 막는 장애물 → 플레이어 순서로 겹친다
@@ -366,7 +379,7 @@ Game.Render = (function () {
     layered.forEach((e) => drawEntity(ctx, state, e));
     drawPlayer(ctx, state);
 
-    if (state.ui.debug) drawDebug(ctx, state);
+    ctx.restore();
   }
 
   // ================= UI (3배 화면 위) =================
@@ -423,7 +436,7 @@ Game.Render = (function () {
     const labelW = Math.ceil(label.width / SCALE);
     const w = labelW + 15;
     const h = 11;
-    const cx = ent.x + ent.w / 2;
+    const cx = Math.round(ent.x + ent.w / 2 - state.camera.x);   // 화면 기준 위치
     const x = Math.max(2, Math.min(WIDTH - w - 2, Math.round(cx - w / 2)));
     const y = Math.max(2, ent.y - h - 6);
 

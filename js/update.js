@@ -1,8 +1,6 @@
 // 매 프레임 상태를 바꾸는 규칙. 그리지 않는다.
 
 Game.update = function (state, input, dt) {
-  if (input.wasPressed('Digit1')) state.ui.debug = !state.ui.debug;
-
   // 대화 중: 이동하지 않고 대화창만 넘긴다
   if (state.ui.mode === 'dialogue') {
     Game.updateDialogue(state, input);
@@ -10,6 +8,7 @@ Game.update = function (state, input, dt) {
   }
 
   Game.movePlayer(state, input, dt);
+  Game.updateCamera(state);
   Game.npcsNoticePlayer(state);
 
   // 가까운 NPC·문 찾기 → "E 대화하기" 표시 대상
@@ -148,9 +147,9 @@ function moveAxis(state, p, dx, dy) {
     moved += step;
   }
 
-  // 안전장치: 어떤 경우에도 화면 밖으로 나가지 않게
-  const { WIDTH, HEIGHT } = Game.CONFIG;
-  p.x = Math.max(0, Math.min(WIDTH - p.w, p.x));
+  // 안전장치: 어떤 경우에도 맵 밖으로 나가지 않게
+  const { HEIGHT } = Game.CONFIG;
+  p.x = Math.max(0, Math.min(Game.mapWidth(Game.currentMap(state)) - p.w, p.x));
   p.y = Math.max(0, Math.min(HEIGHT - p.h, p.y));
   return blocked;
 }
